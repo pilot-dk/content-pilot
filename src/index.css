@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f6f5fb;
+  --bg-elevated: #ffffff;
+  --bg-subtle: #eeecf7;
+  --border: #e3e0f2;
+  --text: #1c1830;
+  --text-muted: #6b6684;
+  --text-faint: #9a95b3;
+  --brand: #7c5cff;
+  --brand-dark: #5f3dfa;
+  --brand-soft: #efe9ff;
+  --accent: #ff5ca8;
+  --success: #17b26a;
+  --success-soft: #e6f7ee;
+  --warning: #f79009;
+  --warning-soft: #fef3e1;
+  --danger: #f04438;
+  --danger-soft: #feeceb;
+  --shadow-color: 240 30% 60%;
+}
+
+.dark {
+  --bg: #0f0d1a;
+  --bg-elevated: #17142a;
+  --bg-subtle: #1e1a35;
+  --border: #2c2650;
+  --text: #f1eefb;
+  --text-muted: #a79fcb;
+  --text-faint: #766f99;
+  --brand: #9179ff;
+  --brand-dark: #7c5cff;
+  --brand-soft: #251f45;
+  --accent: #ff7fbb;
+  --success: #3dd68c;
+  --success-soft: #163326;
+  --warning: #ffb547;
+  --warning-soft: #3a2a10;
+  --danger: #ff6b61;
+  --danger-soft: #3a1917;
+  --shadow-color: 250 60% 3%;
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--brand);
+  color: white;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 2px hsl(var(--shadow-color) / 0.06), 0 8px 24px -12px hsl(var(--shadow-color) / 0.18);
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
