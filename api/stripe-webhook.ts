@@ -55,7 +55,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const session = event.data.object as Stripe.Checkout.Session
         const userId = session.client_reference_id ?? session.metadata?.supabase_user_id
         if (userId) {
-          await admin.from('subscriptions').upsert({
+          const { error } = await admin.from('subscriptions').upsert({
             user_id: userId,
             email: session.customer_details?.email ?? null,
             stripe_customer_id: typeof session.customer === 'string' ? session.customer : (session.customer?.id ?? null),
@@ -63,6 +63,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               typeof session.subscription === 'string' ? session.subscription : (session.subscription?.id ?? null),
             status: 'active',
           })
+          if (error) throw new Error(`subscriptions upsert failed: ${error.message}`)
         }
         break
       }
@@ -81,12 +82,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           ...(periodEndSeconds ? { current_period_end: new Date(periodEndSeconds * 1000).toISOString() } : {}),
         }
 
-        if (userId) {
-          await admin.from('subscriptions').update(patch).eq('user_id', userId)
-        } else {
-          // Fall back to matching by Stripe customer id if metadata wasn't propagated.
-          await admin.from('subscriptions').update(patch).eq('stripe_customer_id', customerId)
-        }
+        const { error } = userId
+          ? await admin.from('subscriptions').update(patch).eq('user_id', userId)
+          : // Fall back to matching by Stripe customer id if metadata wasn't propagated.
+            await admin.from('subscriptions').update(patch).eq('stripe_customer_id', customerId)
+        if (error) throw new Error(`subscriptions update failed: ${error.message}`)
         break
       }
 
