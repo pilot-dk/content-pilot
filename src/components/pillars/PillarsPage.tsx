@@ -1,29 +1,46 @@
 import { useMemo, useState } from 'react'
 import { Plus } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { useAuthStore } from '../../store/useAuthStore'
+import { isCloudConfigured } from '../../lib/supabase'
 import { pillarStats } from '../../lib/rotation'
-import type { ContentPillar } from '../../types'
+import { FREE_PILLAR_LIMIT, type ContentPillar } from '../../types'
 import { Topbar } from '../layout/Topbar'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
+import { UpsellModal } from '../ui/UpsellModal'
+import { AuthModal } from '../auth/AuthModal'
+import { useUpgradeFlow } from '../../hooks/useUpgradeFlow'
 import { PillarModal } from './PillarModal'
 
 export function PillarsPage() {
   const pillars = useAppStore((s) => s.pillars)
   const items = useAppStore((s) => s.items)
-  const [modalState, setModalState] = useState<{ mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; pillar: ContentPillar }>({
-    mode: 'closed',
-  })
+  const isPro = useAuthStore((s) => s.isPro)
+  const [modalState, setModalState] = useState<
+    { mode: 'closed' } | { mode: 'create' } | { mode: 'edit'; pillar: ContentPillar } | { mode: 'upsell' }
+  >({ mode: 'closed' })
 
   const stats = useMemo(() => pillarStats(pillars, items, new Date()), [pillars, items])
+  const atFreeLimit = isCloudConfigured && !isPro && pillars.length >= FREE_PILLAR_LIMIT
+  const { upgrade, showAuth, closeAuth } = useUpgradeFlow()
+
+  const openCreate = () => setModalState({ mode: atFreeLimit ? 'upsell' : 'create' })
 
   return (
     <div>
-      <Topbar title="Content Pillars" subtitle="The rotation of content types ContentPilot suggests to keep you varied." />
+      <Topbar
+        title="Content Pillars"
+        subtitle={
+          atFreeLimit
+            ? `The rotation of content types ContentPilot suggests to keep you varied. Free plan is capped at ${FREE_PILLAR_LIMIT}.`
+            : 'The rotation of content types ContentPilot suggests to keep you varied.'
+        }
+      />
 
       <div className="p-5 md:p-8">
         <div className="mb-4 flex justify-end">
-          <Button size="sm" icon={<Plus size={14} />} onClick={() => setModalState({ mode: 'create' })}>
+          <Button size="sm" icon={<Plus size={14} />} onClick={openCreate}>
             New pillar
           </Button>
         </div>
@@ -63,6 +80,15 @@ export function PillarsPage() {
       {modalState.mode === 'edit' && (
         <PillarModal onClose={() => setModalState({ mode: 'closed' })} existing={modalState.pillar} />
       )}
+      {modalState.mode === 'upsell' && (
+        <UpsellModal
+          title="Free plan pillar limit reached"
+          body={`The free plan is capped at ${FREE_PILLAR_LIMIT} content pillars. Upgrade to Pro for unlimited pillars, cloud sync, and calendar export.`}
+          onClose={() => setModalState({ mode: 'closed' })}
+          onUpgrade={upgrade}
+        />
+      )}
+      {showAuth && <AuthModal onClose={closeAuth} />}
     </div>
   )
 }

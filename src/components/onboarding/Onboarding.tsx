@@ -1,11 +1,14 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Rocket } from 'lucide-react'
+import { ArrowLeft, ArrowRight, CloudDownload, Rocket } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { useAuthStore } from '../../store/useAuthStore'
+import { isCloudConfigured } from '../../lib/supabase'
+import { pullCloudSnapshot } from '../../lib/cloudSync'
 import { PLATFORMS } from '../../data/platforms'
 import { NICHES } from '../../data/niches'
 import { defaultPillarsFor } from '../../data/pillars'
-import type { Niche, Platform } from '../../types'
+import type { AppSnapshot, Niche, Platform } from '../../types'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Field, Input } from '../ui/Field'
@@ -14,7 +17,32 @@ const STEP_LABELS = ['You', 'Platform', 'Niche', 'Cadence', 'Review']
 
 export function Onboarding() {
   const completeOnboarding = useAppStore((s) => s.completeOnboarding)
+  const loadSnapshot = useAppStore((s) => s.loadSnapshot)
+  const authUser = useAuthStore((s) => s.user)
+  const isPro = useAuthStore((s) => s.isPro)
   const navigate = useNavigate()
+
+  const [cloudSnapshot, setCloudSnapshot] = useState<AppSnapshot | null>(null)
+  const [cloudDismissed, setCloudDismissed] = useState(false)
+  const [restoring, setRestoring] = useState(false)
+
+  useEffect(() => {
+    if (!isCloudConfigured || !authUser || !isPro) return
+    let cancelled = false
+    pullCloudSnapshot(authUser.id).then((snapshot) => {
+      if (!cancelled && snapshot?.profile) setCloudSnapshot(snapshot)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [authUser, isPro])
+
+  const restoreFromCloud = async () => {
+    if (!cloudSnapshot) return
+    setRestoring(true)
+    loadSnapshot(cloudSnapshot)
+    setRestoring(false)
+  }
 
   const [step, setStep] = useState(0)
   const [displayName, setDisplayName] = useState('')
@@ -54,6 +82,26 @@ export function Onboarding() {
           </div>
           <span className="text-xl font-semibold tracking-tight text-[var(--text)]">ContentPilot</span>
         </div>
+
+        {step === 0 && cloudSnapshot && !cloudDismissed && (
+          <Card padding="md" className="mb-6 flex items-center gap-3 border-[var(--brand)]/30 bg-[var(--brand-soft)]">
+            <CloudDownload size={20} className="shrink-0 text-[var(--brand)]" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-[var(--text)]">Welcome back, {cloudSnapshot.profile?.displayName}</p>
+              <p className="text-xs text-[var(--text-muted)]">
+                We found your ContentPilot data synced from another device — restore it instead of starting over?
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setCloudDismissed(true)}>
+                Start fresh
+              </Button>
+              <Button size="sm" onClick={restoreFromCloud} disabled={restoring}>
+                {restoring ? 'Restoring…' : 'Restore'}
+              </Button>
+            </div>
+          </Card>
+        )}
 
         <div className="mb-6 flex items-center justify-center gap-2">
           {STEP_LABELS.map((label, i) => (

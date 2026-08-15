@@ -86,3 +86,17 @@ export interface RecommendedSlot {
   score: number
   reason: string
 }
+
+export type SubscriptionStatus = 'free' | 'active' | 'past_due' | 'canceled'
+
+/** The full app data snapshot shape — used for local export/import AND cloud sync, so both stay in lockstep. */
+export interface AppSnapshot {
+  profile: CreatorProfile | null
+  pillars: ContentPillar[]
+  items: ScheduledItem[]
+  goals: Goal[]
+  theme: 'light' | 'dark' | 'system'
+}
+
+/** Free-tier limits — enforced in the UI; cloud writes are additionally enforced server-side (see supabase/schema.sql). */
+export const FREE_PILLAR_LIMIT = 5

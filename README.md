@@ -11,7 +11,8 @@ A scheduler built specifically for content creators. Tell it the platform you po
 - **Calendar** — a full month view for planning, with "great day to post" highlighting based on the recommendation engine.
 - **Consistency streaks** — tracks consecutive weeks you've hit your upload goal, plus your longest streak ever.
 - **Monthly & yearly goals** — auto-tracked upload goals, plus manually-tracked goals for subscribers, views, watch hours, revenue, or anything custom.
-- **Local-first** — everything is stored in your browser (`localStorage`); export/import a JSON backup any time from Settings.
+- **Local-first free tier** — everything is stored in your browser (`localStorage`); export/import a JSON backup any time from Settings. No account required.
+- **Pro tier ($7/mo)** — sign in (passwordless magic-link email) to unlock cross-device cloud sync, unlimited content pillars (free is capped at 5), and calendar (.ics) export. Billed via Stripe; manage or cancel anytime from the in-app Customer Portal link.
 - **Light / dark / system theme.**
 
 ## Tech stack
@@ -23,8 +24,10 @@ A scheduler built specifically for content creators. Tell it the platform you po
 - [React Router](https://reactrouter.com/) for client-side routing
 - [date-fns](https://date-fns.org/) for date math
 - [lucide-react](https://lucide.dev/) for icons
+- [Supabase](https://supabase.com/) for auth (magic-link email) + Postgres, powering Pro cloud sync
+- [Stripe](https://stripe.com/) Checkout + Customer Portal for Pro billing, via two Vercel serverless functions
 
-No backend, no database, no API keys required — it's a static single-page app.
+The free tier needs none of the above — it's a static single-page app with everything in `localStorage`. Supabase + Stripe are only required if you want to enable the paid Pro tier.
 
 ## Getting started
 
@@ -33,7 +36,7 @@ npm install
 npm run dev
 ```
 
-Open the printed local URL in your browser. On first run you'll be walked through a short onboarding flow to set up your creator profile.
+Open the printed local URL in your browser. On first run you'll be walked through a short onboarding flow to set up your creator profile. This works fully offline/local with zero configuration — Pro features stay hidden (with a small "not configured" note in Settings) until you set up the environment variables below.
 
 ### Build for production
 
@@ -42,7 +45,23 @@ npm run build
 npm run preview
 ```
 
-`npm run build` outputs a static site to `dist/` that can be deployed anywhere that serves static files (Vercel, Netlify, GitHub Pages, Cloudflare Pages, etc.).
+`npm run build` outputs a static site to `dist/` that can be deployed anywhere that serves static files. Deploying the `/api` serverless functions (used only for Stripe billing) requires Vercel specifically, since that's what they're written for.
+
+## Enabling the Pro tier (optional)
+
+1. **Create a [Supabase](https://supabase.com) project** (free tier is plenty). In the SQL Editor, run [`supabase/schema.sql`](supabase/schema.sql) once — it creates the `subscriptions` and `cloud_snapshots` tables with Row Level Security (writes to `cloud_snapshots` are only permitted for users with an `active` subscription, so the paywall is enforced at the database level, not just in the UI).
+2. **Create a [Stripe](https://stripe.com) account**, add a Product with a recurring monthly Price (this app defaults to $7/mo, edit `AccountCard.tsx` / `PillarsPage.tsx` copy if you change it), and grab the Price id.
+3. Copy [`.env.example`](.env.example) to `.env` and fill in:
+   - `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` — Supabase → Project Settings → API
+   - `SUPABASE_SERVICE_ROLE_KEY` — same page, **secret**, server-only, used only inside `/api` functions
+   - `STRIPE_SECRET_KEY` — Stripe → Developers → API keys
+   - `STRIPE_PRO_PRICE_ID` — the recurring Price id from step 2
+   - `PUBLIC_SITE_URL` — your deployed origin, e.g. `https://content-pilot.vercel.app`
+4. Add the same variables to your Vercel project (Settings → Environment Variables), then deploy.
+5. In Stripe → Developers → Webhooks, add an endpoint at `<your-site>/api/stripe-webhook` listening for `checkout.session.completed`, `customer.subscription.updated`, and `customer.subscription.deleted`. Copy the generated signing secret into `STRIPE_WEBHOOK_SECRET` (both locally and in Vercel), then redeploy.
+6. In Stripe → Settings → Billing → Customer portal, activate the portal so the in-app "Manage billing" button works.
+
+Everything degrades gracefully without these set — the app just runs as the free, local-only tool it started as.
 
 ## Project structure
 
@@ -50,17 +69,27 @@ npm run preview
 src/
   types.ts                  Core domain types
   data/                     Static reference data (platforms, niches, pillar templates)
-  lib/                      Pure logic: recommendation engine, pillar rotation, streaks, goals
-  store/useAppStore.ts      Zustand store (persisted to localStorage)
+  lib/                      Pure logic: recommendation engine, pillar rotation, streaks, goals,
+                             Supabase client, cloud sync, Stripe checkout/portal calls, .ics export
+  store/
+    useAppStore.ts          Zustand store for creator data (persisted to localStorage)
+    useAuthStore.ts         Zustand store for auth/subscription state (backed by Supabase session)
+  hooks/
+    useCloudSync.ts         Pulls/pushes the app snapshot to Supabase for signed-in Pro users
+    useUpgradeFlow.ts       Sign-in-then-checkout flow, reusable from any upsell prompt
   components/
-    onboarding/             First-run setup wizard
+    onboarding/             First-run setup wizard (+ "restore from cloud" prompt for Pro)
     layout/                 Sidebar, mobile nav, topbar, shell
     dashboard/               Home screen — up-next, streak, best times, goals, activity, schedule
     calendar/                Month view + add/edit schedule modal
-    pillars/                 Content pillar management
+    pillars/                 Content pillar management (free tier capped at 5)
     goals/                   Monthly/yearly goal tracking
-    settings/                 Profile editing, theme, backup/restore, reset
+    settings/                 Profile editing, account/billing, theme, backup/restore, reset
+    auth/                    Magic-link sign-in modal
     ui/                       Small reusable UI primitives
+
+api/                        Vercel serverless functions (Stripe checkout/portal/webhook)
+supabase/schema.sql         Database schema + Row Level Security policies
 ```
 
 ## How the recommendation engine works

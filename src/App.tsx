@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAppStore } from './store/useAppStore'
+import { useCloudSync } from './hooks/useCloudSync'
 import { Onboarding } from './components/onboarding/Onboarding'
 import { Shell } from './components/layout/Shell'
 import { Dashboard } from './components/dashboard/Dashboard'
@@ -34,6 +35,7 @@ function useThemeEffect() {
 
 export default function App() {
   useThemeEffect()
+  useCloudSync()
   const profile = useAppStore((s) => s.profile)
 
   if (!profile) {

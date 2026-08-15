@@ -1,14 +1,20 @@
 import { useRef, useState } from 'react'
-import { Download, Upload } from 'lucide-react'
+import { Download, Lock, Upload } from 'lucide-react'
 import { useAppStore } from '../../store/useAppStore'
+import { useAuthStore } from '../../store/useAuthStore'
 import { PLATFORMS } from '../../data/platforms'
 import { NICHES } from '../../data/niches'
 import type { Niche, Platform } from '../../types'
+import { downloadIcsCalendar } from '../../lib/icsExport'
+import { isCloudConfigured } from '../../lib/supabase'
+import { useUpgradeFlow } from '../../hooks/useUpgradeFlow'
 import { Topbar } from '../layout/Topbar'
 import { Card } from '../ui/Card'
 import { Button } from '../ui/Button'
 import { Field, Input, Select } from '../ui/Field'
 import { Modal } from '../ui/Modal'
+import { AccountCard } from './AccountCard'
+import { AuthModal } from '../auth/AuthModal'
 
 export function SettingsPage() {
   const profile = useAppStore((s) => s.profile)
@@ -17,6 +23,10 @@ export function SettingsPage() {
   const setTheme = useAppStore((s) => s.setTheme)
   const resetAll = useAppStore((s) => s.resetAll)
   const loadSnapshot = useAppStore((s) => s.loadSnapshot)
+  const items = useAppStore((s) => s.items)
+  const pillars = useAppStore((s) => s.pillars)
+  const isPro = useAuthStore((s) => s.isPro)
+  const { upgrade, showAuth, closeAuth } = useUpgradeFlow()
 
   const [confirmReset, setConfirmReset] = useState(false)
   const [importError, setImportError] = useState<string | null>(null)
@@ -71,6 +81,8 @@ export function SettingsPage() {
       <Topbar title="Settings" subtitle="Manage your profile, theme, and data." />
 
       <div className="max-w-2xl space-y-5 p-5 md:p-8">
+        <AccountCard />
+
         <Card padding="lg">
           <h3 className="text-sm font-semibold text-[var(--text)]">Profile</h3>
           <div className="mt-4 space-y-4">
@@ -142,6 +154,16 @@ export function SettingsPage() {
             <Button variant="secondary" size="md" icon={<Upload size={15} />} onClick={() => fileInputRef.current?.click()}>
               Import backup
             </Button>
+            {isCloudConfigured && (
+              <Button
+                variant="secondary"
+                size="md"
+                icon={isPro ? <Download size={15} /> : <Lock size={15} />}
+                onClick={() => (isPro ? downloadIcsCalendar(items, pillars) : upgrade())}
+              >
+                {isPro ? 'Export calendar (.ics)' : 'Export calendar (.ics) — Pro'}
+              </Button>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -196,6 +218,8 @@ export function SettingsPage() {
           </p>
         </Modal>
       )}
+
+      {showAuth && <AuthModal onClose={closeAuth} />}
     </div>
   )
 }
