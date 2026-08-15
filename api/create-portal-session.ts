@@ -1,6 +1,6 @@
-import type { VercelRequest, VercelResponse } from './_lib/types'
-import { getStripe } from './_lib/stripe'
-import { getSupabaseAdmin, getUserFromAuthHeader } from './_lib/supabaseAdmin'
+import type { VercelRequest, VercelResponse } from './_lib/types.js'
+import { getStripe } from './_lib/stripe.js'
+import { getSupabaseAdmin, getUserFromAuthHeader } from './_lib/supabaseAdmin.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') {

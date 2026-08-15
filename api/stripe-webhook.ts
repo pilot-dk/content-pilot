@@ -1,8 +1,8 @@
 import type { IncomingMessage } from 'node:http'
 import type Stripe from 'stripe'
-import type { VercelRequest, VercelResponse } from './_lib/types'
-import { getStripe } from './_lib/stripe'
-import { getSupabaseAdmin } from './_lib/supabaseAdmin'
+import type { VercelRequest, VercelResponse } from './_lib/types.js'
+import { getStripe } from './_lib/stripe.js'
+import { getSupabaseAdmin } from './_lib/supabaseAdmin.js'
 
 // Stripe requires the raw, unparsed request body to verify the webhook
 // signature — Vercel supports this same `config.api.bodyParser` opt-out for
